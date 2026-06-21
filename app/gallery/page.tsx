@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useCollection } from "../../hooks/useCollection";
 import type { DriveFolder, DriveFile } from "../../types";
 import {
   Plus, X, RefreshCw, Download, Play, Image as ImageIcon,
   ChevronLeft, ChevronRight, ExternalLink, FolderOpen, Loader2
 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Modal } from "../../components/Modal"; // match the relative depth of your other imports
 
 export default function GalleryPage() {
   const { data: folders, add: addFolder, remove: removeFolder } = useCollection<DriveFolder>("driveFolders");
@@ -21,6 +23,8 @@ export default function GalleryPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [lightbox, setLightbox] = useState<{ files: DriveFile[]; index: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function extractFolderId(link: string) {
     const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -204,38 +208,31 @@ export default function GalleryPage() {
 
       {/* Add Folder Modal */}
       {addModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAddModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200">
-              <h2 className="font-serif text-xl font-semibold text-maroon-900">Connect Drive Folder</h2>
-              <button onClick={() => setAddModal(false)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+        <Modal title="Connect Drive Folder" onClose={() => setAddModal(false)}>
+          <div className="space-y-3">
+            <div className="bg-ivory-50 rounded-xl px-4 py-3 text-xs text-gray-500 space-y-1">
+              <p className="font-medium text-gray-600">How to share a Drive folder:</p>
+              <p>1. Open your folder in Google Drive</p>
+              <p>2. Right-click → Share → General access → Anyone with the link → Viewer</p>
+              <p>3. Copy link and paste below</p>
             </div>
-            <div className="px-5 py-4 space-y-3">
-              <div className="bg-ivory-50 rounded-xl px-4 py-3 text-xs text-gray-500 space-y-1">
-                <p className="font-medium text-gray-600">How to share a Drive folder:</p>
-                <p>1. Open your folder in Google Drive</p>
-                <p>2. Right-click → Share → General access → Anyone with the link → Viewer</p>
-                <p>3. Copy link and paste below</p>
-              </div>
-              <div>
-                <label className="label">Album Label</label>
-                <input className="input" value={labelInput} onChange={e => setLabelInput(e.target.value)} placeholder="e.g. Mehendi Photos, Baraat Video" />
-              </div>
-              <div>
-                <label className="label">Google Drive Folder Link *</label>
-                <input className="input" value={linkInput} onChange={e => setLinkInput(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/…" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setAddModal(false)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleAddFolder} disabled={saving || !linkInput.trim()} className="btn-primary flex-1">
-                  {saving ? "Adding…" : "Connect Folder"}
-                </button>
-              </div>
+            <div>
+              <label className="label">Album Label</label>
+              <input className="input" value={labelInput} onChange={e => setLabelInput(e.target.value)} placeholder="e.g. Mehendi Photos, Baraat Video" />
+            </div>
+            <div>
+              <label className="label">Google Drive Folder Link *</label>
+              <input className="input" value={linkInput} onChange={e => setLinkInput(e.target.value)}
+                placeholder="https://drive.google.com/drive/folders/…" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setAddModal(false)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleAddFolder} disabled={saving || !linkInput.trim()} className="btn-primary flex-1">
+                {saving ? "Adding…" : "Connect Folder"}
+              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Lightbox */}

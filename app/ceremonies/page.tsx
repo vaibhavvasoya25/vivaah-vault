@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCollection } from "../../hooks/useCollection";
 import type { Ceremony } from "../../types";
 import { Plus, Pencil, Trash2, CalendarDays, Clock, MapPin, X } from "lucide-react";
+import { Modal } from "../../components/Modal";
 
 const SEED_CEREMONIES = [
   { name: "Haldi", color: "yellow" },
@@ -172,17 +173,21 @@ export default function CeremoniesPage() {
   );
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200 sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="font-serif text-xl font-semibold text-maroon-900">{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
-        </div>
-        <div className="px-5 py-4">{children}</div>
-      </div>
-    </div>
-  );
-}
+// function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+//   return (
+//     <div className="fixed inset-0 z-50 overflow-y-auto">
+//       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+//       <div className="relative min-h-full flex items-end sm:items-center justify-center p-4">
+//         <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[calc(100dvh_-_2rem)] flex flex-col animate-in">
+//           {/* Header — fixed size, never scrolls away */}
+//           <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200 shrink-0">
+//             <h2 className="font-serif text-xl font-semibold text-maroon-900">{title}</h2>
+//             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+//           </div>
+//           {/* Body — only this scrolls */}
+//           <div className="px-5 py-4 overflow-y-auto flex-1">{children}</div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }

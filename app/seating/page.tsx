@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCollection } from "../../hooks/useCollection";
 import type { Table, Guest } from "../../types";
 import { Plus, X, Pencil, Trash2, Users, MapPin, UserCheck, UserX } from "lucide-react";
+import { Modal } from "../../components/Modal";
 
 const BLANK_TABLE: Omit<Table, "id" | "createdAt"> = { name: "", capacity: 10, notes: "" };
 
@@ -173,77 +174,58 @@ export default function SeatingPage() {
 
       {/* Add/Edit Table Modal */}
       {(modal === "addTable" || modal === "editTable") && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-in">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200">
-              <h2 className="font-serif text-xl font-semibold text-maroon-900">
-                {modal === "addTable" ? "Add Table" : "Edit Table"}
-              </h2>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+        <Modal title={modal === "addTable" ? "Add Table" : "Edit Table"} onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Table Name *</label>
+              <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Table 1 · VIP" autoFocus />
             </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="label">Table Name *</label>
-                <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Table 1 · VIP" autoFocus />
-              </div>
-              <div>
-                <label className="label">Capacity (seats)</label>
-                <input type="number" min={1} max={50} className="input" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="label">Notes</label>
-                <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Near stage, family only" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleSaveTable} disabled={saving || !form.name.trim()} className="btn-primary flex-1">
-                  {saving ? "Saving…" : "Save Table"}
-                </button>
-              </div>
+            <div>
+              <label className="label">Capacity (seats)</label>
+              <input type="number" min={1} max={50} className="input" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: Number(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="label">Notes</label>
+              <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. Near stage, family only" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleSaveTable} disabled={saving || !form.name.trim()} className="btn-primary flex-1">
+                {saving ? "Saving…" : "Save Table"}
+              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Assign Guests Modal */}
       {modal === "assign" && assignTable && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto animate-in">
-            <div className="sticky top-0 bg-white flex items-center justify-between px-5 py-4 border-b border-ivory-200 rounded-t-2xl">
-              <div>
-                <h2 className="font-serif text-xl font-semibold text-maroon-900">Assign to {assignTable.name}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {guestsAtTable(assignTable.id).length}/{assignTable.capacity} filled
-                </p>
-              </div>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
-            </div>
-            <div className="px-5 py-4 space-y-1.5">
-              {guests.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-8">No guests added yet</p>
-              ) : guests.map((g) => {
-                const isHere = g.tableId === assignTable.id;
-                const otherTable = tables.find(t => t.id === g.tableId && t.id !== assignTable.id);
-                const tableFull = guestsAtTable(assignTable.id).length >= assignTable.capacity;
-                return (
-                  <label key={g.id} className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
-                    isHere ? "bg-maroon-50" : "hover:bg-ivory-50"
+        <Modal title={`Assign to ${assignTable.name}`} onClose={() => setModal(null)}>
+          <div className="space-y-1.5">
+            <p className="text-xs text-gray-400 -mt-1 mb-2">
+              {guestsAtTable(assignTable.id).length}/{assignTable.capacity} filled
+            </p>
+            {guests.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">No guests added yet</p>
+            ) : guests.map((g) => {
+              const isHere = g.tableId === assignTable.id;
+              const otherTable = tables.find(t => t.id === g.tableId && t.id !== assignTable.id);
+              const tableFull = guestsAtTable(assignTable.id).length >= assignTable.capacity;
+              return (
+                <label key={g.id} className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${isHere ? "bg-maroon-50" : "hover:bg-ivory-50"
                   } ${tableFull && !isHere ? "opacity-40 pointer-events-none" : ""}`}>
-                    <input type="checkbox" checked={isHere} onChange={() => toggleAssign(g, assignTable.id)}
-                      className="rounded border-ivory-400 text-maroon-600 focus:ring-maroon-300" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{g.name}{g.plusOnes > 0 ? ` +${g.plusOnes}` : ""}</p>
-                      {otherTable && <p className="text-xs text-amber-600">Currently at {otherTable.name}</p>}
-                    </div>
-                    <span className="text-xs text-gray-400">{g.side}</span>
-                  </label>
-                );
-              })}
-            </div>
+                  <input type="checkbox" checked={isHere} onChange={() => toggleAssign(g, assignTable.id)}
+                    className="rounded border-ivory-400 text-maroon-600 focus:ring-maroon-300" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800">{g.name}{g.plusOnes > 0 ? ` +${g.plusOnes}` : ""}</p>
+                    {otherTable && <p className="text-xs text-amber-600">Currently at {otherTable.name}</p>}
+                  </div>
+                  <span className="text-xs text-gray-400">{g.side}</span>
+                </label>
+              );
+            })}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

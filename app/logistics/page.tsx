@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCollection } from "../../hooks/useCollection";
 import type { RefreshmentStatus, MenuItem, Ceremony, Guest } from "../../types";
 import { Plus, X, Pencil, Trash2, UtensilsCrossed, Droplets, IndianRupee } from "lucide-react";
+import { Modal } from "../../components/Modal";
 
 const REFRESHMENT_ITEMS = ["Juice", "Water", "Chai / Tea", "Coffee", "Buttermilk", "Thandai"];
 const MENU_CATEGORIES = ["Starter", "Main Course", "Dal / Sabzi", "Bread", "Rice", "Dessert", "Drinks", "Farsan"];
@@ -98,29 +99,25 @@ export default function LogisticsPage() {
       {/* Ceremony filter */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button onClick={() => setSelectedCeremony("all")}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            selectedCeremony === "all" ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300"
-          }`}>All Ceremonies</button>
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${selectedCeremony === "all" ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300"
+            }`}>All Ceremonies</button>
         {ceremonies.map((c) => (
           <button key={c.id} onClick={() => setSelectedCeremony(c.id)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              selectedCeremony === c.id ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300"
-            }`}>{c.name}</button>
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${selectedCeremony === c.id ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300"
+              }`}>{c.name}</button>
         ))}
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-ivory-100 rounded-xl p-1 w-fit">
         <button onClick={() => setActiveTab("refreshments")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === "refreshments" ? "bg-white shadow-sm text-maroon-800" : "text-gray-500"
-          }`}>
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "refreshments" ? "bg-white shadow-sm text-maroon-800" : "text-gray-500"
+            }`}>
           <Droplets size={15} /> Refreshments
         </button>
         <button onClick={() => setActiveTab("menu")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === "menu" ? "bg-white shadow-sm text-maroon-800" : "text-gray-500"
-          }`}>
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "menu" ? "bg-white shadow-sm text-maroon-800" : "text-gray-500"
+            }`}>
           <UtensilsCrossed size={15} /> Dinner Menu
         </button>
       </div>
@@ -158,9 +155,8 @@ export default function LogisticsPage() {
                     <div className="flex gap-1.5">
                       {(["ready", "pending", "not-needed"] as const).map((s) => (
                         <button key={s} onClick={() => updateRefresh(r.id, { status: s })}
-                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors capitalize ${
-                            r.status === s ? STATUS_STYLES[s] : "border-ivory-300 text-gray-400 hover:border-gray-300"
-                          }`}>
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors capitalize ${r.status === s ? STATUS_STYLES[s] : "border-ivory-300 text-gray-400 hover:border-gray-300"
+                            }`}>
                           {s === "not-needed" ? "N/A" : s.charAt(0).toUpperCase() + s.slice(1)}
                         </button>
                       ))}
@@ -257,65 +253,56 @@ export default function LogisticsPage() {
 
       {/* Add/Edit Menu Item Modal */}
       {(modal === "addItem" || modal === "editItem") && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200 sticky top-0 bg-white rounded-t-2xl">
-              <h2 className="font-serif text-xl font-semibold text-maroon-900">
-                {modal === "addItem" ? "Add Dish" : "Edit Dish"}
-              </h2>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+        <Modal title={modal === "addItem" ? "Add Dish" : "Edit Dish"} onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Dish Name *</label>
+              <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Paneer Butter Masala" autoFocus />
             </div>
-            <div className="px-5 py-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Dish Name *</label>
-                <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Paneer Butter Masala" autoFocus />
+                <label className="label">Category</label>
+                <select className="input" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                  {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Category</label>
-                  <select className="input" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                    {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Ceremony</label>
-                  <select className="input" value={form.ceremonyId} onChange={e => setForm(f => ({ ...f, ceremonyId: e.target.value }))}>
-                    <option value="">None</option>
-                    {ceremonies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Portions / Headcount</label>
-                  <input type="number" min={0} className="input" value={form.headcount || ""}
-                    onChange={e => setForm(f => ({ ...f, headcount: Number(e.target.value) }))} placeholder="0" />
-                </div>
-                <div>
-                  <label className="label">Cost per head (₹)</label>
-                  <input type="number" min={0} className="input" value={form.perHeadCost || ""}
-                    onChange={e => setForm(f => ({ ...f, perHeadCost: Number(e.target.value) }))} placeholder="0" />
-                </div>
-              </div>
-              {form.headcount > 0 && form.perHeadCost > 0 && (
-                <div className="bg-ivory-50 rounded-lg px-3 py-2 text-sm">
-                  Estimated cost: <span className="font-semibold text-maroon-700">{formatINR(form.headcount * form.perHeadCost)}</span>
-                </div>
-              )}
               <div>
-                <label className="label">Notes</label>
-                <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Spice level, special requirements…" />
+                <label className="label">Ceremony</label>
+                <select className="input" value={form.ceremonyId} onChange={e => setForm(f => ({ ...f, ceremonyId: e.target.value }))}>
+                  <option value="">None</option>
+                  {ceremonies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleSaveItem} disabled={saving || !form.name.trim()} className="btn-primary flex-1">
-                  {saving ? "Saving…" : "Save Dish"}
-                </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Portions / Headcount</label>
+                <input type="number" min={0} className="input" value={form.headcount || ""}
+                  onChange={e => setForm(f => ({ ...f, headcount: Number(e.target.value) }))} placeholder="0" />
               </div>
+              <div>
+                <label className="label">Cost per head (₹)</label>
+                <input type="number" min={0} className="input" value={form.perHeadCost || ""}
+                  onChange={e => setForm(f => ({ ...f, perHeadCost: Number(e.target.value) }))} placeholder="0" />
+              </div>
+            </div>
+            {form.headcount > 0 && form.perHeadCost > 0 && (
+              <div className="bg-ivory-50 rounded-lg px-3 py-2 text-sm">
+                Estimated cost: <span className="font-semibold text-maroon-700">{formatINR(form.headcount * form.perHeadCost)}</span>
+              </div>
+            )}
+            <div>
+              <label className="label">Notes</label>
+              <input className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Spice level, special requirements…" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleSaveItem} disabled={saving || !form.name.trim()} className="btn-primary flex-1">
+                {saving ? "Saving…" : "Save Dish"}
+              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

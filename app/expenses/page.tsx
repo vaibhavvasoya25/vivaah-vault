@@ -8,6 +8,7 @@ import {
   BarChart3, List, ChevronDown, ChevronUp
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Modal } from "../../components/Modal";
 
 const SEED_CATEGORIES = [
   "Farm / Venue Rent", "Decoration", "Photography Package",
@@ -61,8 +62,10 @@ export default function ExpensesPage() {
   function openAdd() { setForm({ ...BLANK_EXPENSE, category: allCategoryNames[0] || "" }); setModal("add"); }
   function openEdit(e: Expense) {
     setEditing(e);
-    setForm({ category: e.category, vendor: e.vendor, totalAmount: e.totalAmount, paidAmount: e.paidAmount,
-      dueDate: e.dueDate, status: e.status, paymentMode: e.paymentMode, notes: e.notes, ceremonyId: e.ceremonyId });
+    setForm({
+      category: e.category, vendor: e.vendor, totalAmount: e.totalAmount, paidAmount: e.paidAmount,
+      dueDate: e.dueDate, status: e.status, paymentMode: e.paymentMode, notes: e.notes, ceremonyId: e.ceremonyId
+    });
     setModal("edit");
   }
 
@@ -184,9 +187,8 @@ export default function ExpensesPage() {
         <div className="flex gap-1.5">
           {(["all", "pending", "partial", "paid"] as const).map((s) => (
             <button key={s} onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
-                filterStatus === s ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300 hover:border-maroon-300"
-              }`}>{s === "all" ? `All (${expenses.length})` : `${STATUS_LABEL[s]} (${expenses.filter(e => e.status === s).length})`}</button>
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${filterStatus === s ? "bg-maroon-800 text-white border-maroon-800" : "bg-white text-gray-600 border-ivory-300 hover:border-maroon-300"
+                }`}>{s === "all" ? `All (${expenses.length})` : `${STATUS_LABEL[s]} (${expenses.filter(e => e.status === s).length})`}</button>
           ))}
         </div>
       </div>
@@ -283,120 +285,103 @@ export default function ExpensesPage() {
 
       {/* Add/Edit Expense Modal */}
       {(modal === "add" || modal === "edit") && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto animate-in">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200 sticky top-0 bg-white rounded-t-2xl">
-              <h2 className="font-serif text-xl font-semibold text-maroon-900">
-                {modal === "add" ? "Add Expense" : "Edit Expense"}
-              </h2>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+        <Modal title={modal === "add" ? "Add Expense" : "Edit Expense"} onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Category *</label>
+              <select className="input" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                <option value="">Select category</option>
+                {allCategoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            <div className="px-5 py-4 space-y-3">
+            <div>
+              <label className="label">Vendor / Description *</label>
+              <input className="input" value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} placeholder="e.g. Royal Tent House" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Category *</label>
-                <select className="input" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                  <option value="">Select category</option>
-                  {allCategoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
+                <label className="label">Total Quoted (₹)</label>
+                <input type="number" min={0} className="input" value={form.totalAmount || ""} onChange={e => handleAmountChange("totalAmount", e.target.value)} placeholder="0" />
+              </div>
+              <div>
+                <label className="label">Amount Paid (₹)</label>
+                <input type="number" min={0} className="input" value={form.paidAmount || ""} onChange={e => handleAmountChange("paidAmount", e.target.value)} placeholder="0" />
+              </div>
+            </div>
+            <div className="bg-ivory-50 rounded-lg px-3 py-2 text-sm">
+              <span className="text-gray-500">Pending: </span>
+              <span className="font-semibold text-maroon-700">{formatINR(Math.max(0, form.totalAmount - form.paidAmount))}</span>
+              <span className="ml-3 text-gray-500">Status: </span>
+              <span className={`font-medium ${form.status === "paid" ? "text-emerald-600" : form.status === "partial" ? "text-amber-600" : "text-red-600"}`}>
+                {STATUS_LABEL[form.status]}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Due Date</label>
+                <input type="date" className="input" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Payment Mode</label>
+                <select className="input" value={form.paymentMode} onChange={e => setForm(f => ({ ...f, paymentMode: e.target.value as PaymentMode }))}>
+                  <option value="cash">Cash</option>
+                  <option value="upi">UPI</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
+            </div>
+            {ceremonies.length > 0 && (
               <div>
-                <label className="label">Vendor / Description *</label>
-                <input className="input" value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} placeholder="e.g. Royal Tent House" />
+                <label className="label">Link to Ceremony (optional)</label>
+                <select className="input" value={form.ceremonyId} onChange={e => setForm(f => ({ ...f, ceremonyId: e.target.value }))}>
+                  <option value="">None</option>
+                  {ceremonies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Total Quoted (₹)</label>
-                  <input type="number" min={0} className="input" value={form.totalAmount || ""} onChange={e => handleAmountChange("totalAmount", e.target.value)} placeholder="0" />
-                </div>
-                <div>
-                  <label className="label">Amount Paid (₹)</label>
-                  <input type="number" min={0} className="input" value={form.paidAmount || ""} onChange={e => handleAmountChange("paidAmount", e.target.value)} placeholder="0" />
-                </div>
-              </div>
-              <div className="bg-ivory-50 rounded-lg px-3 py-2 text-sm">
-                <span className="text-gray-500">Pending: </span>
-                <span className="font-semibold text-maroon-700">{formatINR(Math.max(0, form.totalAmount - form.paidAmount))}</span>
-                <span className="ml-3 text-gray-500">Status: </span>
-                <span className={`font-medium ${form.status === "paid" ? "text-emerald-600" : form.status === "partial" ? "text-amber-600" : "text-red-600"}`}>
-                  {STATUS_LABEL[form.status]}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Due Date</label>
-                  <input type="date" className="input" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Payment Mode</label>
-                  <select className="input" value={form.paymentMode} onChange={e => setForm(f => ({ ...f, paymentMode: e.target.value as PaymentMode }))}>
-                    <option value="cash">Cash</option>
-                    <option value="upi">UPI</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-              {ceremonies.length > 0 && (
-                <div>
-                  <label className="label">Link to Ceremony (optional)</label>
-                  <select className="input" value={form.ceremonyId} onChange={e => setForm(f => ({ ...f, ceremonyId: e.target.value }))}>
-                    <option value="">None</option>
-                    {ceremonies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="label">Notes</label>
-                <textarea className="input resize-none h-16" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Payment terms, contact info…" />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleSave} disabled={saving || !form.vendor.trim() || !form.category} className="btn-primary flex-1">
-                  {saving ? "Saving…" : "Save Expense"}
-                </button>
-              </div>
+            )}
+            <div>
+              <label className="label">Notes</label>
+              <textarea className="input resize-none h-16" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Payment terms, contact info…" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleSave} disabled={saving || !form.vendor.trim() || !form.category} className="btn-primary flex-1">
+                {saving ? "Saving…" : "Save Expense"}
+              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Add Category Modal */}
       {modal === "addCat" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-in">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-ivory-200">
-              <h2 className="font-serif text-xl font-semibold text-maroon-900">Add Category</h2>
-              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg hover:bg-ivory-100"><X size={18} /></button>
+        <Modal title="Add Category" onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Category Name</label>
+              <input className="input" value={newCat} onChange={e => setNewCat(e.target.value)} placeholder="e.g. Fireworks" autoFocus />
             </div>
-            <div className="px-5 py-4 space-y-3">
+            {categories.length > 0 && (
               <div>
-                <label className="label">Category Name</label>
-                <input className="input" value={newCat} onChange={e => setNewCat(e.target.value)} placeholder="e.g. Fireworks" autoFocus />
-              </div>
-              {/* Existing categories */}
-              {categories.length > 0 && (
-                <div>
-                  <label className="label">Existing categories</label>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {categories.map((c) => (
-                      <span key={c.id} className="flex items-center gap-1 px-2 py-1 bg-ivory-100 rounded-full text-xs text-gray-600">
-                        {c.name}
-                        <button onClick={() => removeCat(c.id)} className="text-gray-400 hover:text-red-500"><X size={10} /></button>
-                      </span>
-                    ))}
-                  </div>
+                <label className="label">Existing categories</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {categories.map((c) => (
+                    <span key={c.id} className="flex items-center gap-1 px-2 py-1 bg-ivory-100 rounded-full text-xs text-gray-600">
+                      {c.name}
+                      <button onClick={() => removeCat(c.id)} className="text-gray-400 hover:text-red-500"><X size={10} /></button>
+                    </span>
+                  ))}
                 </div>
-              )}
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={handleAddCat} disabled={!newCat.trim()} className="btn-primary flex-1">Add</button>
               </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleAddCat} disabled={!newCat.trim()} className="btn-primary flex-1">Add</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
