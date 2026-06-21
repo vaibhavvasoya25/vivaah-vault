@@ -167,7 +167,7 @@ export default function DashboardPage() {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => formatINR(v)} />
+                  <Tooltip formatter={(value) => formatINR(Number(value ?? 0))} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 space-y-1.5 min-w-0">
