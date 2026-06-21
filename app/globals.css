@@ -1,26 +1,151 @@
 @import "tailwindcss";
 
+@theme {
+  --color-maroon-50: #fdf2f4;
+  --color-maroon-100: #fce7ea;
+  --color-maroon-200: #f9d2d8;
+  --color-maroon-300: #f0a8b4;
+  --color-maroon-400: #df7a8c;
+  --color-maroon-500: #c84d68;
+  --color-maroon-600: #b22d4f;
+  --color-maroon-700: #ac2040;
+  --color-maroon-800: #901e3c;
+  --color-maroon-900: #7c1d39;
+
+  --color-gold-50: #fffbeb;
+  --color-gold-100: #fef3c7;
+  --color-gold-200: #fde68a;
+  --color-gold-300: #fcd34d;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+  --color-gold-700: #b45309;
+
+  --color-ivory-50: #fdfcfa;
+  --color-ivory-100: #faf6f0;
+  --color-ivory-200: #f5ede0;
+  --color-ivory-300: #edddc8;
+  --color-ivory-400: #e0c8a8;
+
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --maroon: #7c1d39;
+  --maroon-light: #ac2040;
+  --gold: #d97706;
+  --gold-light: #fbbf24;
+  --ivory: #faf6f0;
+  --ivory-dark: #f5ede0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn-primary {
+    @apply bg-maroon-800 text-ivory-50 px-4 py-2.5 rounded-lg font-sans font-medium text-sm
+           hover:bg-maroon-700 active:bg-maroon-900 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-maroon-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-ivory-200 text-maroon-800 px-4 py-2.5 rounded-lg font-sans font-medium text-sm
+           hover:bg-ivory-300 active:bg-ivory-400 transition-colors duration-150
+           border border-ivory-400
+           focus:outline-none focus:ring-2 focus:ring-maroon-300 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply text-maroon-700 px-3 py-2 rounded-lg font-sans font-medium text-sm
+           hover:bg-ivory-200 active:bg-ivory-300 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-maroon-300 focus:ring-offset-1;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-ivory-300 p-4;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ivory-400 bg-white px-3 py-2.5 text-sm
+           text-gray-800 placeholder-gray-400 font-sans
+           focus:outline-none focus:border-maroon-400 focus:ring-2 focus:ring-maroon-100
+           transition-colors duration-150;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide;
+  }
+
+.badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-paid {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700;
+  }
+  .status-partial {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700;
+  }
+  .status-pending {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700;
+  }
+  .status-confirmed {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700;
+  }
+  .status-declined {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700;
+  }
+  .status-maybe {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium
+           text-gray-600 hover:text-maroon-800 hover:bg-maroon-50
+           transition-colors duration-150;
+  }
+
+  .nav-link.active {
+    @apply text-maroon-800 bg-maroon-50 font-semibold;
+  }
+
+  .section-title {
+    @apply font-serif text-2xl text-maroon-900 font-semibold;
+  }
+
+  .ornament {
+    @apply text-gold-500 font-serif;
+  }
 }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #edddc8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #cfae85; }
+
+/* Animations */
+.animate-in {
+  animation: fadeSlideUp 0.25s ease-out both;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile bottom nav safe area */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
