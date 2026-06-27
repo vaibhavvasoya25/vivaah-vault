@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useCollection } from "../../hooks/useCollection";
 import type { DriveFolder, DriveFile } from "../../types";
 import {
-  Plus, X, RefreshCw, Download, Play, Image as ImageIcon,
+  Plus, X, RefreshCw, Download, Play,
   ChevronLeft, ChevronRight, ExternalLink, FolderOpen, Loader2
 } from "lucide-react";
-import { createPortal } from "react-dom";
 import { Modal } from "../../components/Modal";
 
 export default function GalleryPage() {
@@ -23,20 +23,30 @@ export default function GalleryPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [lightbox, setLightbox] = useState<{ files: DriveFile[]; index: number } | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
-  // Keyboard navigation for lightbox
+  // Keyboard nav + scroll lock
   useEffect(() => {
-    if (!lightbox) return;
+    if (!lightbox) {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+      return;
+    }
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setLightbox(null);
-      if (e.key === "ArrowLeft") lbPrev();
-      if (e.key === "ArrowRight") lbNext();
+      if (e.key === "ArrowLeft") setLightbox(l => l ? { ...l, index: (l.index - 1 + l.files.length) % l.files.length } : null);
+      if (e.key === "ArrowRight") setLightbox(l => l ? { ...l, index: (l.index + 1) % l.files.length } : null);
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [!!lightbox]);
 
   function extractFolderId(link: string) {
     const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -70,15 +80,20 @@ export default function GalleryPage() {
   }, []);
 
   function isVideo(file: DriveFile) {
-    return file.mimeType.startsWith("video/");
+    return file.mimeType?.startsWith("video/");
   }
 
+  // Grid thumbnails: use Drive's thumbnail directly — these work fine in <img> tags
   function thumbnailUrl(file: DriveFile) {
-    return file.thumbnailLink?.replace("=s220", "=s400") ||
-      `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+    if (file.thumbnailLink) {
+      // Drive returns e.g. =s220 size — bump it up for sharper display
+      return file.thumbnailLink.replace(/=s\d+/, "=s400");
+    }
+    // Fallback: Drive's public thumbnail endpoint (works for shared files)
+    return `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
   }
 
-  // ── FIXED: use server-side proxy to bypass CORS on full-size images ──
+  // Full-size image in lightbox: use our server proxy to bypass CORS
   function viewUrl(file: DriveFile) {
     return `/api/drive-proxy?id=${file.id}&type=view`;
   }
@@ -87,12 +102,9 @@ export default function GalleryPage() {
     return `https://drive.google.com/uc?export=download&id=${file.id}`;
   }
 
-  // Lightbox
   function openLightbox(folderFiles: DriveFile[], index: number) {
     setLightbox({ files: folderFiles, index });
   }
-  function lbPrev() { setLightbox(l => l ? { ...l, index: (l.index - 1 + l.files.length) % l.files.length } : null); }
-  function lbNext() { setLightbox(l => l ? { ...l, index: (l.index + 1) % l.files.length } : null); }
 
   const lbFile = lightbox ? lightbox.files[lightbox.index] : null;
 
@@ -125,7 +137,9 @@ export default function GalleryPage() {
             const folderFiles = files[folder.id] || [];
             const isLoading = loading[folder.id];
             const error = errors[folder.id];
-            const mediaFiles = folderFiles.filter(f => f.mimeType.startsWith("image/") || f.mimeType.startsWith("video/"));
+            const mediaFiles = folderFiles.filter(f =>
+              f.mimeType?.startsWith("image/") || f.mimeType?.startsWith("video/")
+            );
 
             return (
               <div key={folder.id}>
@@ -179,16 +193,17 @@ export default function GalleryPage() {
                         className="group relative aspect-square rounded-xl overflow-hidden bg-ivory-200 cursor-pointer"
                         onClick={() => openLightbox(mediaFiles, idx)}
                       >
-                        {/* Thumbnail */}
+                        {/* Thumbnail — direct Drive URL, no proxy needed */}
                         <img
                           src={thumbnailUrl(file)}
                           alt={file.name}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f5ede0' width='100' height='100'/%3E%3C/svg%3E"; }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f5ede0' width='100' height='100'/%3E%3C/svg%3E";
+                          }}
                         />
-
-                        {/* Video indicator */}
                         {isVideo(file) && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center">
@@ -196,11 +211,7 @@ export default function GalleryPage() {
                             </div>
                           </div>
                         )}
-
-                        {/* Hover overlay */}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200" />
-
-                        {/* Download btn */}
                         <a
                           href={downloadUrl(file)}
                           download
@@ -231,7 +242,8 @@ export default function GalleryPage() {
             </div>
             <div>
               <label className="label">Album Label</label>
-              <input className="input" value={labelInput} onChange={e => setLabelInput(e.target.value)} placeholder="e.g. Mehendi Photos, Baraat Video" />
+              <input className="input" value={labelInput} onChange={e => setLabelInput(e.target.value)}
+                placeholder="e.g. Mehendi Photos, Baraat Video" />
             </div>
             <div>
               <label className="label">Google Drive Folder Link *</label>
@@ -248,102 +260,237 @@ export default function GalleryPage() {
         </Modal>
       )}
 
-      {/* Lightbox */}
+      {/* Lightbox via Portal — renders directly into document.body */}
       {lightbox && lbFile && (
-        <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" onClick={() => setLightbox(null)}>
-          {/* Top bar */}
-          <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={e => e.stopPropagation()}>
-            <p className="text-white/70 text-sm truncate max-w-xs">{lbFile.name}</p>
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-sm">{lightbox.index + 1} / {lightbox.files.length}</span>
-              <a href={downloadUrl(lbFile)} download onClick={e => e.stopPropagation()}
-                className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm">
-                <Download size={16} /> Download
-              </a>
-              <button onClick={() => setLightbox(null)} className="text-white/70 hover:text-white p-1">
-                <X size={22} />
-              </button>
-            </div>
-          </div>
-
-          {/* Media */}
-          <div className="flex-1 flex items-center justify-center px-12 overflow-hidden" onClick={e => e.stopPropagation()}>
-            {isVideo(lbFile) ? (
-              <video
-                src={viewUrl(lbFile)}
-                controls
-                autoPlay
-                className="max-w-full max-h-full rounded-xl"
-                style={{ maxHeight: "calc(100vh - 140px)" }}
-              />
-            ) : (
-              // ── FIXED: LightboxImage with loading spinner and thumbnail fallback ──
-              <LightboxImage
-                key={lbFile.id}
-                src={viewUrl(lbFile)}
-                fallbackSrc={thumbnailUrl(lbFile)}
-                alt={lbFile.name}
-              />
-            )}
-          </div>
-
-          {/* Prev / Next */}
-          {lightbox.files.length > 1 && (
-            <>
-              <button onClick={e => { e.stopPropagation(); lbPrev(); }}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
-                <ChevronLeft size={22} />
-              </button>
-              <button onClick={e => { e.stopPropagation(); lbNext(); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
-                <ChevronRight size={22} />
-              </button>
-            </>
-          )}
-
-          {/* Thumbnail strip */}
-          <div className="flex gap-1.5 overflow-x-auto py-3 px-4 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
-            {lightbox.files.map((f, i) => (
-              <button key={f.id} onClick={() => setLightbox(l => l ? { ...l, index: i } : null)}
-                className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-colors ${
-                  i === lightbox.index ? "border-gold-400" : "border-transparent opacity-60 hover:opacity-100"
-                }`}>
-                <img src={thumbnailUrl(f)} alt={f.name} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        </div>
+        <Lightbox
+          files={lightbox.files}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onPrev={() => setLightbox(l => l ? { ...l, index: (l.index - 1 + l.files.length) % l.files.length } : null)}
+          onNext={() => setLightbox(l => l ? { ...l, index: (l.index + 1) % l.files.length } : null)}
+          onJump={(i) => setLightbox(l => l ? { ...l, index: i } : null)}
+          isVideo={isVideo}
+          thumbnailUrl={thumbnailUrl}
+          viewUrl={viewUrl}
+          downloadUrl={downloadUrl}
+        />
       )}
     </div>
   );
 }
 
-// ── NEW: Lightbox image component with spinner + thumbnail fallback ──
-function LightboxImage({ src, fallbackSrc, alt }: { src: string; fallbackSrc: string; alt: string }) {
-  const [imgSrc, setImgSrc] = useState(src);
-  const [loaded, setLoaded] = useState(false);
+function Lightbox({
+  files, index, onClose, onPrev, onNext, onJump,
+  isVideo, thumbnailUrl, viewUrl, downloadUrl
+}: {
+  files: DriveFile[];
+  index: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onJump: (i: number) => void;
+  isVideo: (f: DriveFile) => boolean;
+  thumbnailUrl: (f: DriveFile) => string;
+  viewUrl: (f: DriveFile) => string;
+  downloadUrl: (f: DriveFile) => string;
+}) {
+  const file = files[index];
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  const overlay = (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", top: 0, left: 0,
+        width: "100vw", height: "100vh",
+        zIndex: 99999,
+        backgroundColor: "rgba(0,0,0,0.95)",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Top bar */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 20px", flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
+          {file.name}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>{index + 1} / {files.length}</span>
+          <a
+            href={downloadUrl(file)}
+            download
+            onClick={e => e.stopPropagation()}
+            style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.7)", fontSize: 14, textDecoration: "none" }}
+          >
+            <Download size={15} /> Download
+          </a>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 4, display: "flex" }}
+          >
+            <X size={22} />
+          </button>
+        </div>
+      </div>
+
+      {/* Image area */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          flex: 1, minHeight: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "16px 72px", overflow: "hidden",
+        }}
+      >
+        {isVideo(file) ? (
+          <video
+            key={file.id}
+            src={viewUrl(file)}
+            controls autoPlay
+            style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 10, display: "block" }}
+          />
+        ) : (
+          <LightboxImage
+            key={file.id}
+            proxyUrl={viewUrl(file)}
+            thumbnailUrl={thumbnailUrl(file)}
+            alt={file.name}
+          />
+        )}
+      </div>
+
+      {/* Prev button */}
+      {files.length > 1 && (
+        <button
+          onClick={e => { e.stopPropagation(); onPrev(); }}
+          style={{
+            position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+            width: 44, height: 44, borderRadius: "50%",
+            background: "rgba(255,255,255,0.12)", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", color: "white",
+          }}
+        >
+          <ChevronLeft size={24} />
+        </button>
+      )}
+
+      {/* Next button */}
+      {files.length > 1 && (
+        <button
+          onClick={e => { e.stopPropagation(); onNext(); }}
+          style={{
+            position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
+            width: 44, height: 44, borderRadius: "50%",
+            background: "rgba(255,255,255,0.12)", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", color: "white",
+          }}
+        >
+          <ChevronRight size={24} />
+        </button>
+      )}
+
+      {/* Thumbnail strip */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          flexShrink: 0, display: "flex", gap: 6,
+          overflowX: "auto", padding: "12px 16px",
+          justifyContent: "center",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        {files.map((f, i) => (
+          <button
+            key={f.id}
+            onClick={() => onJump(i)}
+            style={{
+              flexShrink: 0, width: 52, height: 52, borderRadius: 8,
+              overflow: "hidden",
+              border: i === index ? "2px solid #fbbf24" : "2px solid transparent",
+              opacity: i === index ? 1 : 0.45,
+              cursor: "pointer", padding: 0, background: "#222",
+              transition: "opacity 0.15s, border-color 0.15s",
+            }}
+          >
+            <img
+              src={thumbnailUrl(f)}
+              alt={f.name}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return createPortal(overlay, document.body);
+}
+
+// Strategy:
+// 1. Show thumbnail immediately (already loaded in grid, instant display)
+// 2. Simultaneously load full-res via proxy in background
+// 3. Swap to full-res when ready; stay on thumbnail if proxy fails
+function LightboxImage({ proxyUrl, thumbnailUrl, alt }: { proxyUrl: string; thumbnailUrl: string; alt: string }) {
+  const [fullLoaded, setFullLoaded] = useState(false);
+  const [fullFailed, setFullFailed] = useState(false);
+
+  // Reset on image change
+  useEffect(() => {
+    setFullLoaded(false);
+    setFullFailed(false);
+  }, [proxyUrl]);
 
   return (
-    <div className="relative flex items-center justify-center w-full h-full">
-      {/* Spinner shown until image loads */}
-      {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader2 size={36} className="text-white/30 animate-spin" />
-        </div>
-      )}
+    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+
+      {/* Thumbnail shown immediately as placeholder */}
       <img
-        src={imgSrc}
+        src={thumbnailUrl}
         alt={alt}
-        className={`max-w-full max-h-full object-contain rounded-xl transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
-        style={{ maxHeight: "calc(100vh - 140px)" }}
-        onLoad={() => setLoaded(true)}
-        onError={() => {
-          // If proxy fails, fall back to the thumbnail URL
-          if (imgSrc !== fallbackSrc) {
-            setImgSrc(fallbackSrc);
-          }
+        style={{
+          position: "absolute",
+          maxWidth: "100%", maxHeight: "100%",
+          objectFit: "contain", borderRadius: 10,
+          display: "block",
+          // Hide once full-res is ready
+          opacity: fullLoaded ? 0 : 1,
+          transition: "opacity 0.3s ease",
         }}
       />
+
+      {/* Spinner shown while full-res is loading */}
+      {!fullLoaded && !fullFailed && (
+        <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)" }}>
+          <Loader2 size={28} style={{ color: "rgba(255,255,255,0.4)" }} className="animate-spin" />
+        </div>
+      )}
+
+      {/* Full-res image loads in background, fades in when ready */}
+      {!fullFailed && (
+        <img
+          src={proxyUrl}
+          alt={alt}
+          style={{
+            position: "absolute",
+            maxWidth: "100%", maxHeight: "100%",
+            objectFit: "contain", borderRadius: 10,
+            display: "block",
+            opacity: fullLoaded ? 1 : 0,
+            transition: "opacity 0.3s ease",
+          }}
+          onLoad={() => setFullLoaded(true)}
+          onError={() => setFullFailed(true)}
+        />
+      )}
     </div>
   );
 }
