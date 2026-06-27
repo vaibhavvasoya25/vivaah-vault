@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
+const MEDIA_MIMES = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp",
+  "image/heic", "image/heif", "image/bmp", "image/tiff",
+  "video/mp4", "video/quicktime", "video/x-msvideo", "video/mpeg",
+  "video/webm", "video/3gpp",
+]);
+
 function extractFolderId(link: string): string | null {
-  // Handles: https://drive.google.com/drive/folders/FOLDER_ID
-  // and: https://drive.google.com/drive/u/0/folders/FOLDER_ID?usp=sharing
   const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
 }
 
 async function listFiles(folderId: string, apiKey: string): Promise<any[]> {
   const fields = "files(id,name,mimeType,thumbnailLink,webViewLink,modifiedTime,size)";
-  const url = `${DRIVE_API}/files?q='${folderId}'+in+parents+and+trashed=false&key=${apiKey}&fields=${fields}&pageSize=100&orderBy=modifiedTime+desc`;
-
+  const url = `${DRIVE_API}/files?q='${folderId}'+in+parents+and+trashed=false&key=${apiKey}&fields=${fields}&pageSize=200&orderBy=modifiedTime+desc`;
   const res = await fetch(url);
   if (!res.ok) {
     const err = await res.json();
@@ -34,36 +38,23 @@ export async function GET(request: NextRequest) {
 
   try {
     let resolvedFolderId = folderId;
-
-    if (!resolvedFolderId && link) {
-      resolvedFolderId = extractFolderId(link);
-    }
-
+    if (!resolvedFolderId && link) resolvedFolderId = extractFolderId(link);
     if (!resolvedFolderId) {
       return NextResponse.json({ error: "Invalid Drive folder link" }, { status: 400 });
     }
 
-    const files = await listFiles(resolvedFolderId, apiKey);
+    const allFiles = await listFiles(resolvedFolderId, apiKey);
+    const subFolders = allFiles.filter((f) => f.mimeType === "application/vnd.google-apps.folder");
+    const mediaFiles = allFiles.filter((f) => MEDIA_MIMES.has(f.mimeType));
 
-    // Separate folders and files
-    const folders = files.filter((f) => f.mimeType === "application/vnd.google-apps.folder");
-    const mediaFiles = files.filter((f) => f.mimeType !== "application/vnd.google-apps.folder");
-
-    // Optionally recurse into subfolders (one level deep)
     const subFiles: any[] = [];
-    for (const folder of folders.slice(0, 5)) {
+    for (const folder of subFolders.slice(0, 10)) {
       const children = await listFiles(folder.id, apiKey);
-      subFiles.push(
-        ...children
-          .filter((f) => f.mimeType !== "application/vnd.google-apps.folder")
-          .map((f) => ({ ...f, _subfolder: folder.name }))
-      );
+      subFiles.push(...children.filter((f) => MEDIA_MIMES.has(f.mimeType)).map((f) => ({ ...f, _subfolder: folder.name })));
     }
 
-    return NextResponse.json({
-      folderId: resolvedFolderId,
-      files: [...mediaFiles, ...subFiles],
-    });
+    const combined = [...mediaFiles, ...subFiles];
+    return NextResponse.json({ folderId: resolvedFolderId, files: combined, total: combined.length });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

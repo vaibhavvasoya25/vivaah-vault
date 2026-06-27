@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, ExternalLink, FolderOpen, Loader2
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import { Modal } from "../../components/Modal"; // match the relative depth of your other imports
+import { Modal } from "../../components/Modal";
 
 export default function GalleryPage() {
   const { data: folders, add: addFolder, remove: removeFolder } = useCollection<DriveFolder>("driveFolders");
@@ -25,6 +25,18 @@ export default function GalleryPage() {
   const [lightbox, setLightbox] = useState<{ files: DriveFile[]; index: number } | null>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightbox(null);
+      if (e.key === "ArrowLeft") lbPrev();
+      if (e.key === "ArrowRight") lbNext();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   function extractFolderId(link: string) {
     const match = link.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -66,8 +78,9 @@ export default function GalleryPage() {
       `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
   }
 
+  // ── FIXED: use server-side proxy to bypass CORS on full-size images ──
   function viewUrl(file: DriveFile) {
-    return `https://drive.google.com/uc?export=view&id=${file.id}`;
+    return `/api/drive-proxy?id=${file.id}&type=view`;
   }
 
   function downloadUrl(file: DriveFile) {
@@ -264,11 +277,12 @@ export default function GalleryPage() {
                 style={{ maxHeight: "calc(100vh - 140px)" }}
               />
             ) : (
-              <img
+              // ── FIXED: LightboxImage with loading spinner and thumbnail fallback ──
+              <LightboxImage
+                key={lbFile.id}
                 src={viewUrl(lbFile)}
+                fallbackSrc={thumbnailUrl(lbFile)}
                 alt={lbFile.name}
-                className="max-w-full max-h-full object-contain rounded-xl"
-                style={{ maxHeight: "calc(100vh - 140px)" }}
               />
             )}
           </div>
@@ -300,6 +314,36 @@ export default function GalleryPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── NEW: Lightbox image component with spinner + thumbnail fallback ──
+function LightboxImage({ src, fallbackSrc, alt }: { src: string; fallbackSrc: string; alt: string }) {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="relative flex items-center justify-center w-full h-full">
+      {/* Spinner shown until image loads */}
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 size={36} className="text-white/30 animate-spin" />
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt={alt}
+        className={`max-w-full max-h-full object-contain rounded-xl transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        style={{ maxHeight: "calc(100vh - 140px)" }}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          // If proxy fails, fall back to the thumbnail URL
+          if (imgSrc !== fallbackSrc) {
+            setImgSrc(fallbackSrc);
+          }
+        }}
+      />
     </div>
   );
 }
